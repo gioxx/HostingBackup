@@ -1,0 +1,20 @@
+{
+    "cpanel1": {
+        "host": "contoso.com",
+        "backup_local_dest_folder": "/mnt/cPanelBackup",
+        "cpanel_api_token": "A1BCDEFGHILMN23OPQRSTUVZ01234567",
+        "cpanel_username": "contosoadmin",
+        "ftp_password": "Your-Fantastic-Password",
+        "ftp_username": "backup@contoso.com",
+        "mail_to_notify": "hello@contoso.com"
+    },
+    "cpanel2": {
+        "host": "ftp.lab.com",
+        "backup_local_dest_folder": "/mnt/cPanelBackup",
+        "cpanel_api_token": "A1BCDEFGHILMN23OPQRSTUVZ01234567",
+        "cpanel_username": "labadmin",
+        "ftp_password": "Your-Fantastic-Laboratory-Password",
+        "ftp_username": "backup@lab.com",
+        "mail_to_notify": "hello@lab.com"
+    }
+}

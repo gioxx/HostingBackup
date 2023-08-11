@@ -1,0 +1,43 @@
+import json
+import requests
+import sys
+
+# Controllo se è stato fornito il nome del set di credenziali come argomento
+if len(sys.argv) < 2:
+    print("Usage: python script.py credentials_set_name")
+    sys.exit(1)
+
+credentials_set_name = sys.argv[1]
+
+# Carico le informazioni FTP dal file di configurazione
+with open("ftp_config.json", "r") as config_file:
+    ftp_config = json.load(config_file)
+
+# Verifico se il set di credenziali specificato esiste nel file di configurazione
+if credentials_set_name not in ftp_config:
+    print(f"Error: Credentials set '{credentials_set_name}' not found in configuration.")
+    sys.exit(1)
+
+# Impostazioni
+credentials = ftp_config[credentials_set_name]
+if credentials["host"].startswith("ftp."):
+    cpanel_host = credentials["host"][4:]
+else:
+    cpanel_host = credentials["host"]
+api_token = credentials["cpanel_api_token"]
+username = credentials["cpanel_username"]
+api_url = f'https://{cpanel_host}:2083/execute/Backup/fullbackup_to_homedir'
+mail_to_notify = credentials["mail_to_notify"]
+
+# Creazione dell'header e dei parametri della richiesta
+headers = {'Authorization': f'cpanel {username}:{api_token}'}
+params = {'email': mail_to_notify}
+
+# Effettuo la richiesta API
+response = requests.get(api_url, headers=headers, params=params)
+
+if response.status_code == 200:
+    output = response.json()
+    print(json.dumps(output, indent=4))
+else:
+    print(f'Error during API request. Status code: {response.status_code}')
