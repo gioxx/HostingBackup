@@ -31,9 +31,11 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 credentials_set_name = sys.argv[1]
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Carico le informazioni FTP dal file di configurazione
-with open("ftp_config.json", "r") as config_file:
+# with open("ftp_config.json", "r") as config_file:
+with open(os.path.join(script_dir, "ftp_config.json"), "r") as config_file:
     ftp_config = json.load(config_file)
 
 # Verifico se il set di credenziali specificato esiste nel file di configurazione
