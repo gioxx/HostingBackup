@@ -34,7 +34,6 @@ credentials_set_name = sys.argv[1]
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Carico le informazioni FTP dal file di configurazione
-# with open("ftp_config.json", "r") as config_file:
 with open(os.path.join(script_dir, "ftp_config.json"), "r") as config_file:
     ftp_config = json.load(config_file)
 
@@ -94,8 +93,7 @@ if response.status_code == 200:
                     print(f"Stable file size, exiting the loop and download {backup_file} to {destination_folder}.")
                     break
                 else:
-                    # print("File size has changed, waiting before rechecking.")
-                    countdown(30,"File size has changed, waiting") # Attendo 30 secondi prima di ricontrollare se esiste il file di backup
+                    countdown(60,"File size has changed, waiting") # Attendo XX secondi prima di ricontrollare se esiste il file di backup e se è stato più modificato dal server
                     previous_file_size = file_size
 
             else:
@@ -104,9 +102,6 @@ if response.status_code == 200:
         except Exception as e:
             print("Error:", e)
     
-        # countdown(30) # Attendo 30 secondi prima di ricontrollare se esiste il file di backup
-
-
     # Ottengo l'elenco di tutti i file nella directory
     all_files = ftp.nlst()
 
