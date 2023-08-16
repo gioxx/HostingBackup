@@ -1,1 +1,7 @@
+ftplib
+json
+os
+requests
+sys
+time
 tqdm
