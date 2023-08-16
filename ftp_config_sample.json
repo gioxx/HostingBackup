@@ -6,7 +6,8 @@
         "cpanel_username": "contosoadmin",
         "ftp_password": "Your-Fantastic-Password",
         "ftp_username": "backup@contoso.com",
-        "mail_to_notify": "hello@contoso.com"
+        "mail_to_notify": "hello@contoso.com",
+        "time_to_wait": 60
     },
     "cpanel2": {
         "host": "ftp.lab.com",
@@ -15,6 +16,7 @@
         "cpanel_username": "labadmin",
         "ftp_password": "Your-Fantastic-Laboratory-Password",
         "ftp_username": "backup@lab.com",
-        "mail_to_notify": "hello@lab.com"
+        "mail_to_notify": "hello@lab.com",
+        "time_to_wait": 30
     }
 }

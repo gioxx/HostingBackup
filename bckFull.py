@@ -52,6 +52,7 @@ api_token = credentials["cpanel_api_token"]
 ftp_password = credentials["ftp_password"]
 ftp_username = credentials["ftp_username"]
 mail_to_notify = credentials["mail_to_notify"]
+time_to_wait = credentials["time_to_wait"]
 server = credentials["host"]
 username = credentials["cpanel_username"]
 
@@ -93,11 +94,12 @@ if response.status_code == 200:
                     print(f"Stable file size, exiting the loop and download {backup_file} to {destination_folder}.")
                     break
                 else:
-                    countdown(60,"File size has changed, waiting") # Attendo XX secondi prima di ricontrollare se esiste il file di backup e se è stato più modificato dal server
+                    countdown(time_to_wait,"File size has changed, waiting") # Attendo XX secondi prima di ricontrollare se esiste il file di backup e se è stato più modificato dal server
                     previous_file_size = file_size
 
             else:
-                print("No backup file found, waiting before rechecking.")
+                # print("No backup file found, waiting before rechecking.")
+                countdown(15,"No backup file found, waiting")
 
         except Exception as e:
             print("Error:", e)
