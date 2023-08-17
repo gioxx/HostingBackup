@@ -1,6 +1,17 @@
+from ftplib import FTP
 import json
+import os
 import requests
 import sys
+
+check_existent_backup = True  # Imposta su False per ignorare e creare un nuovo backup
+
+def get_first_backup_file(ftp):
+    file_list = ftp.nlst()
+    for filename in file_list:
+        if filename.startswith("backup-") and filename.endswith(".tar.gz"):
+            return filename
+    return None
 
 # Controllo se è stato fornito il nome del set di credenziali come argomento
 if len(sys.argv) < 2:
@@ -33,6 +44,25 @@ mail_to_notify = credentials["mail_to_notify"]
 # Creazione dell'header e dei parametri della richiesta
 headers = {'Authorization': f'cpanel {username}:{api_token}'}
 params = {'email': mail_to_notify}
+
+if check_existent_backup:
+    server = credentials["host"]
+    ftp_username = credentials["ftp_username"]
+    ftp_password = credentials["ftp_password"]
+
+    # Connetto al server FTP
+    ftp = FTP(server)
+    ftp.login(ftp_username, ftp_password)
+
+    # Navigo nella directory principale del server FTP (dove cPanel solitamente appoggia il fullbackup) e verifico l'esistenza di un file di backup precedente
+    ftp.cwd("/")
+    print_backup_file = None
+    backup_file = get_first_backup_file(ftp)
+    if backup_file:
+        if print_backup_file != backup_file:
+            print_backup_file = backup_file
+            print(f"{backup_file} already found, download the existing backup before creating another one. Exit the script")
+            sys.exit(0)
 
 # Effettuo la richiesta API
 response = requests.get(api_url, headers=headers, params=params)
