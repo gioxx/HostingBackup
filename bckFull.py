@@ -77,7 +77,7 @@ if check_existent_backup:
     if backup_file:
         if print_backup_file != backup_file:
             print_backup_file = backup_file
-            print(f"{backup_file} already found, download the existing backup before creating another one. Exit the script")
+            print(f"{backup_file} already found, download the existing backup before creating another one. Exit from the script now.")
             sys.exit(0)
 
 # Effettuo la richiesta API
