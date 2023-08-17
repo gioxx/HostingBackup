@@ -59,9 +59,9 @@ for filename in all_files:
         # Elimino il file dal server
         try:
             ftp.delete(filename)
-            print(f"File {filename} successfully deleted.")
+            print(f"{filename} successfully deleted.")
         except Exception as e:
-            print(f"Error while deleting the file {filename}: {e}")
+            print(f"Error while deleting {filename}: {e}")
 
 # Chiudo la connessione FTP
 ftp.quit()
