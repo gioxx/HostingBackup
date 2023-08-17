@@ -65,6 +65,8 @@ destination_folder = os.path.join(credentials["backup_local_dest_folder"], serve
 headers = {'Authorization': f'cpanel {username}:{api_token}'}
 params = {'email': mail_to_notify}
 
+existing_previous_backup = False
+
 if check_existent_backup:
     # Connetto al server FTP
     ftp = FTP(server)
@@ -77,16 +79,21 @@ if check_existent_backup:
     if backup_file:
         if print_backup_file != backup_file:
             print_backup_file = backup_file
-            print(f"{backup_file} already found, download the existing backup before creating another one. Exit from the script now.")
-            sys.exit(0)
+            print(f"{backup_file} already found, download the existing backup before creating another one. Jump to download code now!")
+            existing_previous_backup = True  # Esiste un precedente backup non scaricato
 
-# Effettuo la richiesta API
-response = requests.get(api_url, headers=headers, params=params)
+if existing_previous_backup == False:
+    # Effettuo la richiesta API
+    response = requests.get(api_url, headers=headers, params=params)
 
-if response.status_code == 200:
-    output = response.json()
-    print(json.dumps(output, indent=4))
+    if response.status_code == 200:
+        output = response.json()
+        print(json.dumps(output, indent=4))
+        existing_previous_backup = True  # Ho lanciato la creazione del backup correttamente
+    else:
+        print(f'Error during API request. Status code: {response.status_code}')
 
+if existing_previous_backup:
     # Connetto al server FTP
     ftp = FTP(server)
     ftp.login(ftp_username, ftp_password)
@@ -120,7 +127,7 @@ if response.status_code == 200:
 
         except Exception as e:
             print("Error:", e)
-    
+
     # Ottengo l'elenco di tutti i file nella directory
     all_files = ftp.nlst()
 
@@ -147,5 +154,3 @@ if response.status_code == 200:
 
     # Chiudo la connessione FTP
     ftp.quit()
-else:
-    print(f'Error during API request. Status code: {response.status_code}')
