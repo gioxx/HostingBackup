@@ -7,6 +7,7 @@ import sys
 import time
 
 check_existent_backup = True  # Imposta su False per ignorare e creare un nuovo backup
+existing_previous_backup = False # Considero non esistente un backup precedente (non variare, viene modificata in automatico dallo script)
 
 def download_callback(data):
     local_file.write(data)
@@ -64,8 +65,6 @@ destination_folder = os.path.join(credentials["backup_local_dest_folder"], serve
 # Creazione dell'header e parametri della richiesta
 headers = {'Authorization': f'cpanel {username}:{api_token}'}
 params = {'email': mail_to_notify}
-
-existing_previous_backup = False
 
 if check_existent_backup:
     # Connetto al server FTP
