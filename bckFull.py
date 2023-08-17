@@ -78,7 +78,7 @@ if check_existent_backup:
     if backup_file:
         if print_backup_file != backup_file:
             print_backup_file = backup_file
-            print(f"{backup_file} already found, download the existing backup before creating another one. Jump to download code now!")
+            print(f"{backup_file} already found, download the existing backup before creating another one. Jump to download phase now!")
             existing_previous_backup = True  # Esiste un precedente backup non scaricato
 
 if existing_previous_backup == False:
