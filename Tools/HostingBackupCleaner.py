@@ -3,13 +3,14 @@ import os
 import subprocess
 import time
 
+dry_run_mode = False # Set to False to perform the deletion, True if you want to run the script in Dry Run
+sendlog = True # Set to False to not send email when finished, True to send it (assuming there are files to be deleted)
+
 load_dotenv()
-dry_run_mode = os.getenv("dry_run_mode") # Set to False to perform the deletion, True if you want to run the script in Dry Run
 folder_path = os.getenv("folder_path")
 excluded_folders = os.getenv("excluded_folders")
-days_threshold = os.getenv("days_threshold")
-sendlog_mailto = os.getenv("sendlog_mailto") # Enter the e-mail address to be notified
-sendlog = os.getenv("sendlog") # Set to False to not send email when finished, True to send it (assuming there are files to be deleted)
+days_threshold = int(os.getenv("days_threshold"))
+sendlog_mailto = os.getenv("sendlog_mailto")
 
 def delete_old_files(folder_path, days_threshold, excluded_folders=None, dry_run=False):
     current_time = time.time()
