@@ -22,7 +22,7 @@ def get_first_backup_file(ftp):
 
 def countdown(seconds,pre):
     while seconds > 0:
-        sys.stdout.write(f"\r{pre} {seconds}s before rechecking")
+        sys.stdout.write(f"\r{pre} {seconds}s before checking again")
         sys.stdout.flush()
         time.sleep(1)
         seconds -= 1
@@ -121,7 +121,7 @@ if existing_previous_backup:
                     previous_file_size = file_size
 
             else:
-                # print("No backup file found, waiting before rechecking.")
+                # print("No backup file found, waiting before checking again.")
                 countdown(15,"No backup file found, waiting")
 
         except Exception as e:
