@@ -1,26 +1,32 @@
 from ftplib import FTP
-from tqdm import tqdm  # Importo la libreria tqdm per disegnare la barra di avanzamento nel terminale durante il download
+from tqdm import tqdm
 import json
 import os
 import requests
 import sys
 import time
 
-check_existent_backup = True  # Imposta su False per ignorare e creare un nuovo backup
-existing_previous_backup = False # Considero non esistente un backup precedente (non variare, viene modificata in automatico dallo script)
-
 def download_callback(data):
+    """
+    Callback per aggiornare la barra di avanzamento.
+    """
     local_file.write(data)
-    pbar.update(len(data))  # Aggiorno la barra di avanzamento
+    pbar.update(len(data))
 
 def get_first_backup_file(ftp):
+    """
+    Ottiene il primo file di backup disponibile sul server FTP.
+    """
     file_list = ftp.nlst()
     for filename in file_list:
         if filename.startswith("backup-") and filename.endswith(".tar.gz"):
             return filename
     return None
 
-def countdown(seconds,pre):
+def countdown(seconds, pre):
+    """
+    Mostra un conto alla rovescia nel terminale.
+    """
     while seconds > 0:
         sys.stdout.write(f"\r{pre} {seconds}s before checking again")
         sys.stdout.flush()
@@ -28,7 +34,49 @@ def countdown(seconds,pre):
         seconds -= 1
     print("")
 
-# Controllo se è stato fornito il nome del set di credenziali come argomento
+def resume_download(ftp, filename, local_filepath):
+    """
+    Scarica il file dal server FTP con supporto per il resume.
+    """
+    # Verifica se esiste un file locale parzialmente scaricato
+    resume_position = 0
+    if os.path.exists(local_filepath):
+        resume_position = os.path.getsize(local_filepath)
+    
+    # Ottiene la dimensione del file remoto
+    remote_file_size = ftp.size(filename)
+
+    # Apre il file locale in modalità append
+    with open(local_filepath, "ab") as local_file, tqdm(
+        total=remote_file_size,
+        initial=resume_position,
+        unit="B",
+        unit_scale=True,
+        desc=filename
+    ) as pbar:
+        # Riprende il download
+        ftp.retrbinary(
+            f"RETR {filename}",
+            lambda data: (local_file.write(data), pbar.update(len(data))),
+            rest=resume_position
+        )
+
+def reliable_download(ftp, filename, local_filepath):
+    """
+    Gestisce il download con riconnessione automatica in caso di errore.
+    """
+    while True:
+        try:
+            resume_download(ftp, filename, local_filepath)
+            print("Download completed successfully!")
+            break
+        except Exception as e:
+            print(f"Error occurred: {e}. Retrying in 5 seconds...")
+            time.sleep(5)
+            ftp = FTP(server)
+            ftp.login(ftp_username, ftp_password)
+
+# Controlla se è stato fornito il nome del set di credenziali come argomento
 if len(sys.argv) < 2:
     print("Usage: python script.py credentials_set_name")
     sys.exit(1)
@@ -36,120 +84,79 @@ if len(sys.argv) < 2:
 credentials_set_name = sys.argv[1]
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Carico le informazioni FTP dal file di configurazione
+# Carica le informazioni FTP dal file di configurazione
 with open(os.path.join(script_dir, "ftp_config.json"), "r") as config_file:
     ftp_config = json.load(config_file)
 
-# Verifico se il set di credenziali specificato esiste nel file di configurazione
+# Verifica se il set di credenziali specificato esiste nel file di configurazione
 if credentials_set_name not in ftp_config:
     print(f"Error: Credentials set '{credentials_set_name}' not found in configuration.")
     sys.exit(1)
 
 # Impostazioni
 credentials = ftp_config[credentials_set_name]
-if credentials["host"].startswith("ftp."):
-    cpanel_host = credentials["host"][4:]
-else:
-    cpanel_host = credentials["host"]
-api_token = credentials["cpanel_api_token"]
-ftp_password = credentials["ftp_password"]
+server = credentials["host"]
 ftp_username = credentials["ftp_username"]
+ftp_password = credentials["ftp_password"]
 mail_to_notify = credentials["mail_to_notify"]
 time_to_wait = credentials["time_to_wait"]
-server = credentials["host"]
-username = credentials["cpanel_username"]
-
-api_url = f'https://{cpanel_host}:2083/execute/Backup/fullbackup_to_homedir'
+cpanel_api_token = credentials["cpanel_api_token"]
+cpanel_username = credentials["cpanel_username"]
 destination_folder = os.path.join(credentials["backup_local_dest_folder"], server)
 
-# Creazione dell'header e parametri della richiesta
-headers = {'Authorization': f'cpanel {username}:{api_token}'}
+# Impostazioni: URL delle API cPanel
+if server.startswith("ftp."):
+    cpanel_host = server[4:]
+else:
+    cpanel_host = server
+api_url = f'https://{cpanel_host}:2083/execute/Backup/fullbackup_to_homedir'
+headers = {'Authorization': f'cpanel {cpanel_username}:{cpanel_api_token}'}
 params = {'email': mail_to_notify}
 
-if check_existent_backup:
-    # Connetto al server FTP
-    ftp = FTP(server)
-    ftp.login(ftp_username, ftp_password)
+# Controlla se esiste già un backup
+ftp = FTP(server)
+ftp.login(ftp_username, ftp_password)
+ftp.cwd("/")
+existing_backup_file = get_first_backup_file(ftp)
 
-    # Navigo nella directory principale del server FTP (dove cPanel solitamente appoggia il fullbackup) e verifico l'esistenza di un file di backup precedente
-    ftp.cwd("/")
-    print_backup_file = None
-    backup_file = get_first_backup_file(ftp)
-    if backup_file:
-        if print_backup_file != backup_file:
-            print_backup_file = backup_file
-            print(f"{backup_file} already found, download the existing backup before creating another one. Jump to download phase now!")
-            existing_previous_backup = True  # Esiste un precedente backup non scaricato
-
-if existing_previous_backup == False:
-    # Effettuo la richiesta API
+if not existing_backup_file:
+    # Se non esiste un backup, lo richiede tramite API cPanel
     response = requests.get(api_url, headers=headers, params=params)
-
     if response.status_code == 200:
         output = response.json()
         print(json.dumps(output, indent=4))
-        existing_previous_backup = True  # Ho lanciato la creazione del backup correttamente
+        print("Backup request sent successfully. Waiting for backup to be generated...")
     else:
-        print(f'Error during API request. Status code: {response.status_code}')
+        print(f"Error during API request. Status code: {response.status_code}")
+        sys.exit(1)
 
-if existing_previous_backup:
-    # Connetto al server FTP
-    ftp = FTP(server)
-    ftp.login(ftp_username, ftp_password)
+# Aspetta che il file di backup venga generato (fino a quando non si stabilizza la dimensione del file, che prendo come indicatore per capire quando ha terminato il backup)
+previous_file_size = None
+while True:
+    backup_file = get_first_backup_file(ftp)
+    if backup_file:
+        print(f"Backup file {backup_file} found.")
+        file_size = ftp.size(backup_file)
+        if file_size == previous_file_size:
+            print("Backup file size is stable. Proceeding with download.")
+            break
+        else:
+            previous_file_size = file_size
+            countdown(time_to_wait, "Backup file size is changing. Waiting")
+    else:
+        countdown(15, "No backup file found. Retrying")
 
-    # Navigo nella directory principale del server FTP (dove cPanel solitamente appoggia il fullbackup)
-    ftp.cwd("/")
+# Verifica che la cartella di destinazione esista e scarica il file di backup
+if not os.path.exists(destination_folder):
+    os.makedirs(destination_folder)
+local_filepath = os.path.join(destination_folder, backup_file)
+reliable_download(ftp, backup_file, local_filepath)
 
-    # Monitoro lo spazio FTP fino a quando non compare il file di backup
-    previous_file_size = None
-    print_backup_file = None
-    while True:
-        try:
-            backup_file = get_first_backup_file(ftp)
-            if backup_file:
-                if print_backup_file != backup_file:
-                    print_backup_file = backup_file
-                    print(f"{backup_file} found.")
+# Elimina il file dal server e chiude la connessione FTP
+try:
+    ftp.delete(backup_file)
+    print(f"{backup_file} successfully deleted from the server.")
+except Exception as e:
+    print(f"Error while deleting {backup_file}: {e}")
 
-                # Verifico l'occupazione su disco del file
-                file_size = ftp.size(backup_file)
-                if file_size == previous_file_size:
-                    print(f"Stable file size, exiting the loop and download {backup_file} to {destination_folder}.")
-                    break
-                else:
-                    countdown(time_to_wait,"File size has changed, waiting") # Attendo XX secondi prima di ricontrollare se esiste il file di backup e se è stato più modificato dal server
-                    previous_file_size = file_size
-
-            else:
-                # print("No backup file found, waiting before checking again.")
-                countdown(15,"No backup file found, waiting")
-
-        except Exception as e:
-            print("Error:", e)
-
-    # Ottengo l'elenco di tutti i file nella directory
-    all_files = ftp.nlst()
-
-    # Mi assicuro che la cartella di destinazione esista
-    if not os.path.exists(destination_folder):
-        os.makedirs(destination_folder)
-
-    # Scarico i file e li cancello poi dal server
-    for filename in all_files:
-        if filename.startswith("backup-") and filename.endswith(".tar.gz"):
-            local_filepath = os.path.join(destination_folder, filename)
-            file_size = ftp.size(filename)  # Ottengo la dimensione del file
-
-            # Utilizzo la callback per il feedback sull'avanzamento
-            with open(local_filepath, "wb") as local_file, tqdm(total=file_size, unit="B", unit_scale=True, desc=filename) as pbar:
-                ftp.retrbinary("RETR " + filename, download_callback)
-
-            # Elimino il file dal server
-            try:
-                ftp.delete(filename)
-                print(f"{filename} successfully deleted.")
-            except Exception as e:
-                print(f"Error while deleting {filename}: {e}")
-
-    # Chiudo la connessione FTP
-    ftp.quit()
+ftp.quit()
