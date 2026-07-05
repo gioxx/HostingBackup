@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import time
 from ftplib import FTP
 
@@ -8,6 +9,10 @@ from tqdm import tqdm
 from . import fmt_size
 
 log = logging.getLogger(__name__)
+
+
+class InsufficientDiskSpaceError(Exception):
+    """Raised when there isn't enough free local disk space to complete a download."""
 
 
 def connect(host: str, username: str, password: str) -> FTP:
@@ -95,6 +100,15 @@ def download_with_resume(host: str, username: str, password: str, filename: str,
                 ftp.quit()
                 return
 
+            remaining = remote_size - local_size
+            free_space = shutil.disk_usage(os.path.dirname(dest_path) or ".").free
+            if free_space < remaining:
+                ftp.quit()
+                raise InsufficientDiskSpaceError(
+                    f"Not enough disk space to download {filename}: need {fmt_size(remaining)}, "
+                    f"only {fmt_size(free_space)} available."
+                )
+
             with open(dest_path, "ab") as f, tqdm(
                 total=remote_size,
                 initial=local_size,
@@ -111,6 +125,8 @@ def download_with_resume(host: str, username: str, password: str, filename: str,
             ftp.quit()
             log.info("Download complete: %s", dest_path)
             return
+        except InsufficientDiskSpaceError:
+            raise
         except Exception as e:
             log.warning("Download error: %s — retrying in 10s", e)
             time.sleep(10)
